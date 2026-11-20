@@ -13,9 +13,10 @@
 <label>Price decimal places<input id="decimals" type="number" min="0" max="10" step="1" value="4"></label>
 <label>SELL / bid<input id="bid" type="number" step="any" min="0" value="105.51" inputmode="decimal"></label>
 <label>BUY / ask<input id="ask" type="number" step="any" min="0" value="106.32" inputmode="decimal"></label>
+<label>Base price move (% of mid-price, before spread)<input id="move" type="number" step="any" min="0" value="1" inputmode="decimal"><small>Enter the market movement percentage used to calculate SL and TP.</small></label>
 <label>Reward-to-risk ratio (before spread)<input id="rrr" type="number" step="any" min="0" value="1" inputmode="decimal"><small>1 = 1:1; 2 = 2:1 reward to risk, before spread.</small></label>
 </div>
-<p><strong>Base price move: 1% of mid-price (before spread)</strong><br><small>Fixed assumption: SL uses a 1% adverse market move; TP uses a 1% × RRR favourable move. Spread increases the loss and reduces the profit.</small></p>
+<p><small>SL uses your base price move against the trade; TP uses that move × RRR in favour of the trade. Spread increases the loss and reduces the profit.</small></p>
 <div class="metrics"><div class="metric">Midpoint<strong id="mid">—</strong></div><div class="metric">Spread / midpoint<strong id="spread">—</strong></div></div>
 <p id="message" role="status" aria-live="polite"></p>
 </section>
@@ -26,16 +27,17 @@
 <article id="shortPanel" class="short" role="tabpanel" aria-labelledby="shortTab" hidden><h2>SHORT · Sell to open</h2><dl><div><dt>Entry (bid)</dt><dd id="shortEntry">—</dd></div><div><dt>Stop loss (ask)</dt><dd class="sl" id="shortSL">—</dd></div><div><dt>Take profit (ask)</dt><dd class="tp" id="shortTP">—</dd></div></dl><small>Close by buying at the ask.</small></article>
 </div>
 <p id="netRatio" aria-live="polite"></p>
-<details><summary>How the calculation works</summary><p>Mid-price = (bid + ask) / 2. Spread = ask − bid. Base price move D = 1% of mid-price, before spread. Assumes the spread stays constant as the market moves.</p><p>Long enters at ask: SL (bid) = current bid − D; TP (bid) = current bid + D × RRR. Short enters at bid: SL (ask) = current ask + D; TP (ask) = current ask − D × RRR.</p><p>For either direction, price risk per unit = D + spread; price reward per unit = D × RRR − spread. The resulting reward-to-risk ratio after spread is reward / risk, before fees and slippage. A target that cannot cover the current spread is rejected.</p><p>Example: 105.51 / 106.32 gives mid-price 105.915 and base move 1.05915. At RRR 1: long SL 104.45085 / TP 106.56915; short SL 107.37915 / TP 105.26085. Price risk is 1.86915 and reward is 0.24915 per unit after spread.</p></details>
+<details><summary>How the calculation works</summary><p>Mid-price = (bid + ask) / 2. Spread = ask − bid. Base price move D = mid-price × your entered percentage / 100, before spread. Assumes the spread stays constant as the market moves.</p><p>Long enters at ask: SL (bid) = current bid − D; TP (bid) = current bid + D × RRR. Short enters at bid: SL (ask) = current ask + D; TP (ask) = current ask − D × RRR.</p><p>For either direction, price risk per unit = D + spread; price reward per unit = D × RRR − spread. The resulting reward-to-risk ratio after spread is reward / risk, before fees and slippage. A target that cannot cover the current spread is rejected.</p><p>Example: 105.51 / 106.32 gives mid-price 105.915 and base move 1.05915. At base price move 1% and RRR 1: long SL 104.45085 / TP 106.56915; short SL 107.37915 / TP 105.26085. Price risk is 1.86915 and reward is 0.24915 per unit after spread.</p></details>
 <p><small>Calculator only; no orders are sent. Assumes positive prices and bid/ask execution. Match your broker’s trigger rules and tick size before entering orders. Display rounding, slippage, fees, funding and changing spreads can affect actual results. Shorting availability depends on the instrument and broker.</small></p>
 </main>
 <script>
 'use strict';
-function calculate(bid,ask,rrr){
+function calculate(bid,ask,rrr,movePct=1){
+ if(!Number.isFinite(movePct)||movePct<=0)throw Error('Enter a positive base price move percentage.');
  if(![bid,ask,rrr].every(Number.isFinite)||bid<=0||ask<=0||rrr<=0)throw Error('Enter positive numbers for both quotes and the reward-to-risk ratio.');
  if(ask<bid)throw Error('BUY / ask must be greater than or equal to SELL / bid.');
- const mid=bid+(ask-bid)/2,spread=ask-bid,base=mid*.01,reward=base*rrr;
- if(reward<=spread)throw Error('The target move does not cover the current spread. Increase RRR or use narrower quotes.');
+ const mid=bid+(ask-bid)/2,spread=ask-bid,base=mid*movePct/100,reward=base*rrr;
+ if(reward<=spread)throw Error('The target move does not cover the current spread. Increase the base price move or RRR, or check the quotes.');
  const result={mid,spread,spreadPct:spread/mid*100,netRRR:(reward-spread)/(base+spread),longEntry:ask,shortEntry:bid,longSL:bid-base,longTP:bid+reward,shortSL:ask+base,shortTP:ask-reward};
  if(!Object.values(result).every(Number.isFinite)||result.longSL<=0||result.shortTP<=0)throw Error('These inputs produce invalid price levels. Check quotes and RRR.');
  return result;
@@ -55,7 +57,7 @@ function update(){
   if(decimalText.trim()===''||!Number.isInteger(decimals)||decimals<0||decimals>10)throw Error('Choose 0 to 10 decimal places.');
   const bid=Number(get('bid').value),ask=Number(get('ask').value),rrr=Number(get('rrr').value);
   if(!Number.isFinite(rrr)||rrr<=0)throw Error('Enter a positive reward-to-risk ratio.');
-  const r=calculate(bid,ask,rrr);
+  const r=calculate(bid,ask,rrr,Number(get('move').value));
   const fmt=v=>v.toFixed(decimals);
   get('mid').textContent=fmt(r.mid);get('spread').textContent=fmt(r.spread)+' / '+r.spreadPct.toFixed(3)+'%';
   if(selectedDirection){const side=selectedDirection;const entry=Number(fmt(r[side+'Entry'])),stop=Number(fmt(r[side+'SL'])),target=Number(fmt(r[side+'TP']));if(stop<=0||target<=0||(side==='long'?!(stop<entry&&entry<target):!(target<entry&&entry<stop)))throw Error('Display rounding hides the order distances. Increase price decimal places.');}
