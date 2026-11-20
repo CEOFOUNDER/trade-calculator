@@ -1,19 +1,17 @@
 # Trade calculator
 
-A standalone web form with no dependencies, accounts, market data requests or broker connection. Open `index.html` in a browser, or publish the repository root with GitHub Pages to use it from any computer. Inputs remain in the page only.
-
-Enter the sell/bid and buy/ask quotes, a stop-loss distance percentage and reward-to-risk ratio (RRR, default 1). Midpoint is `(bid + ask) / 2`; spread percentage uses that midpoint. The percentages specify planned per-unit price gain/loss using the midpoint as a base, measured from each executable entry price.
-
-Long enters at ask and exits at bid: SL = ask − midpoint × SL%, TP = ask + midpoint × SL% × RRR. Short enters at bid and exits at ask: SL = bid + midpoint × SL%, TP = bid − midpoint × SL% × RRR. Entry spread is included through quote sides and must not be added twice.
-
-For bid 105.51 and ask 106.32, midpoint = 105.915 and spread = 0.81 (0.764764% of midpoint). At 1% SL and TP, unrounded levels are long SL 105.26085 / TP 107.37915 and short SL 106.56915 / TP 104.45085.
-
-Supports positive-price instruments only. Decimal places control display precision, not exchange tick size. Confirm broker trigger conventions and tradability. Slippage, fees, funding, gaps and future spread changes are excluded. No orders are placed.
-
-## Architecture
-
-One responsive HTML file containing CSS and plain JavaScript. No installation or build is required. The calculation function rejects invalid and crossed quotes and non-positive exit levels. A warning highlights stops inside the current spread.
-
-Choose LONG or SHORT explicitly; only the selected panel appears. TP distance is derived as stop-loss distance × RRR. Unsafe spread stops, invalid inputs and collapsed rounded levels clear the results. Run checks with: node test.cjs.
-
 Live app: https://ceofounder.github.io/trade-calculator/
+
+Five inputs: security label (optional), price decimals, sell/bid, buy/ask, and reward-to-risk ratio before spread (default 1 = 1:1). The label does not fetch quotes. Click Long or Short to show only that direction.
+
+Base price move: 1% of mid-price (before spread) is fixed, not an input. M = (bid + ask) / 2; D = M * 0.01; S = ask - bid. Assumes unchanged spread during the move.
+
+Long enters at ask and exits at bid: SL = bid - D; TP = bid + D * RRR. Short enters at bid and exits at ask: SL = ask + D; TP = ask - D * RRR.
+
+For either direction, risk per unit = D + S; reward per unit = D * RRR - S. The after-spread ratio is reward / risk, before fees and slippage. Targets that cannot cover the spread are rejected. A 1:1 ratio before spread is less than 1:1 after spread.
+
+Example: bid 105.51, ask 106.32, M 105.915, D 1.05915, S 0.81. At RRR 1: long SL 104.45085 / TP 106.56915; short SL 107.37915 / TP 105.26085. Risk 1.86915; reward 0.24915 per unit after spread.
+
+One responsive HTML file with plain CSS and JavaScript. No dependencies or build. Run `node test.cjs`. Invalid inputs, non-positive levels, insufficient targets and ambiguous rounding clear results.
+
+No broker connection, order submission, quote lookup or storage. Positive-price instruments only. Display decimals do not set exchange tick size. Confirm broker trigger rules. Fees, slippage, funding, gaps and future spread changes are excluded.
