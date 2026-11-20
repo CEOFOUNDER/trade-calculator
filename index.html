@@ -33,6 +33,9 @@
 <style>
 body{padding:10px}main{max-width:440px}header{display:flex;align-items:center;justify-content:space-between;gap:8px}h1{font-size:1.15rem;margin:0}header button{font-size:.875rem;padding:6px 8px;margin:0}.panel,article{padding:10px;margin-top:8px;border-radius:10px}.inputs{grid-template-columns:1fr 1fr;gap:8px 10px}label{font-size:.875rem}input{margin-top:4px;padding:6px 8px;font-size:1rem;min-width:0;height:34px}.metrics{gap:10px;margin-top:6px;font-size:.875rem}.metric strong{font-size:1rem;margin-top:2px}p{margin:5px 0;line-height:1.35}small{font-size:.875rem;line-height:1.35}#basis{margin-top:7px}#message:empty,#windowMessage:empty,#netRatio:empty{display:none}.direction{padding:6px 10px}.direction [role=tablist]{display:flex;gap:8px}.direction button{flex:1;padding:6px;margin:0}#directionPrompt{font-size:.875rem}article h2{font-size:1rem;margin:0 0 2px}dl div{padding:5px 0}article small{margin-top:5px}details{margin-top:7px;font-size:.875rem;line-height:1.4}#netRatio{font-size:.875rem}button[aria-selected=true]{border-width:1px}#windowMessage{font-size:.875rem;color:#ffd28a}@media(max-width:330px){header{flex-wrap:wrap}.inputs{gap:6px}body{padding:6px}}@media(max-height:550px){article small{display:none}}
 </style>
+<style>
+.panel,article{padding:8px}.inputs{gap:6px 10px}input{height:28px;margin-top:2px;padding:3px 7px}label{line-height:1.2}.metrics{margin-top:5px}.direction{padding:6px 8px}.direction button{padding:5px}#directionPrompt{margin:4px 0}article dl{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}article dl div{display:flex;flex-direction:column;gap:4px;padding:5px 0;border:0}article dt{font-size:.875rem;line-height:1.2}article dd{font-size:1rem;overflow-wrap:anywhere}article small{display:none}#netRatio{line-height:1.25}details{margin-top:5px}
+</style>
 <script>
 'use strict';
 function calculate(bid,ask,rrr,movePct=1){
