@@ -1,17 +1,16 @@
 # Trade calculator
 
-Live app: https://ceofounder.github.io/trade-calculator/
+Live: https://ceofounder.github.io/trade-calculator/
 
-Six inputs: security label (optional), price decimals, sell/bid, buy/ask, base price move percentage, and reward-to-risk ratio before spread (default 1 = 1:1). The label does not fetch quotes. Click Long or Short to show only that direction.
+Enter security label, price decimals, sell/bid, buy/ask, risk distance (% of mid-price), and reward/risk ratio. Select Long or Short. Security is a label, not a quote lookup.
 
-Base price move (% of mid-price, before spread) is editable and defaults to 1%. M = (bid + ask) / 2; D = M * entered percentage / 100; S = ask - bid. Assumes unchanged spread during the move.
+Mid-price M = (bid + ask) / 2. Planned risk D = M * percentage / 100. Planned reward = D * RRR. Both are measured from executable entry to closing quote AFTER spread, before fees and slippage.
 
-Long enters at ask and exits at bid: SL = bid - D; TP = bid + D * RRR. Short enters at bid and exits at ask: SL = ask + D; TP = ask - D * RRR.
+Long entry = ask, closing quotes = bid: SL = ask - D; TP = ask + D * RRR.
+Short entry = bid, closing quotes = ask: SL = bid + D; TP = bid - D * RRR.
 
-For either direction, risk per unit = D + S; reward per unit = D * RRR - S. The after-spread ratio is reward / risk, before fees and slippage. Targets that cannot cover the spread are rejected. A 1:1 ratio before spread is less than 1:1 after spread.
+Do not add spread twice. A stop distance at or inside the current spread is rejected. At bid 105.51 / ask 106.32, 1% and RRR 1: long SL 105.26085 / TP 107.37915; short SL 106.56915 / TP 104.45085. Both risk and reward are 1.05915 per unit after spread.
 
-Example: bid 105.51, ask 106.32, M 105.915, D 1.05915, S 0.81. At RRR 1: long SL 104.45085 / TP 106.56915; short SL 107.37915 / TP 105.26085. Risk 1.86915; reward 0.24915 per unit after spread.
+Compact layout. Floating window uses Document Picture-in-Picture in supported desktop browsers. Keep the opener tab open; closing the floating window returns the calculator and inputs to the tab. Unsupported browsers display instructions.
 
-One responsive HTML file with plain CSS and JavaScript. No dependencies or build. Run `node test.cjs`. Invalid inputs, non-positive levels, insufficient targets and ambiguous rounding clear results.
-
-No broker connection, order submission, quote lookup or storage. Positive-price instruments only. Display decimals do not set exchange tick size. Confirm broker trigger rules. Fees, slippage, funding, gaps and future spread changes are excluded.
+One HTML file; no dependencies or broker connection. Run node test.cjs. Invalid inputs and ambiguous display rounding clear results. Display decimals do not set exchange tick size; displayed values are rounded. Fees, slippage, gaps and funding are excluded. No orders are submitted.
