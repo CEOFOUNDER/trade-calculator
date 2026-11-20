@@ -13,9 +13,9 @@
 <label>Price decimal places<input id="decimals" type="number" min="0" max="10" step="1" value="4"></label>
 <label>SELL / bid<input id="bid" type="number" step="any" min="0" value="105.51" inputmode="decimal"></label>
 <label>BUY / ask<input id="ask" type="number" step="any" min="0" value="106.32" inputmode="decimal"></label>
-<label>Stop-loss distance (% of midpoint)<input id="sl" type="number" step="any" min="0" value="1" inputmode="decimal"></label>
-<label>Reward-to-risk ratio (RRR)<input id="rrr" type="number" step="any" min="0" value="1" inputmode="decimal"><small>1 = equal reward and risk; 2 = twice the reward.</small></label>
+<label>Reward-to-risk ratio (before spread)<input id="rrr" type="number" step="any" min="0" value="1" inputmode="decimal"><small>1 = 1:1; 2 = 2:1 reward to risk, before spread.</small></label>
 </div>
+<p><strong>Base price move: 1% of mid-price (before spread)</strong><br><small>Fixed assumption: SL uses a 1% adverse market move; TP uses a 1% × RRR favourable move. Spread increases the loss and reduces the profit.</small></p>
 <div class="metrics"><div class="metric">Midpoint<strong id="mid">—</strong></div><div class="metric">Spread / midpoint<strong id="spread">—</strong></div></div>
 <p id="message" role="status" aria-live="polite"></p>
 </section>
@@ -25,17 +25,19 @@
 <article id="longPanel" class="long" role="tabpanel" aria-labelledby="longTab" hidden><h2>LONG · Buy to open</h2><dl><div><dt>Entry (ask)</dt><dd id="longEntry">—</dd></div><div><dt>Stop loss (bid)</dt><dd class="sl" id="longSL">—</dd></div><div><dt>Take profit (bid)</dt><dd class="tp" id="longTP">—</dd></div></dl><small>Close by selling at the bid.</small></article>
 <article id="shortPanel" class="short" role="tabpanel" aria-labelledby="shortTab" hidden><h2>SHORT · Sell to open</h2><dl><div><dt>Entry (bid)</dt><dd id="shortEntry">—</dd></div><div><dt>Stop loss (ask)</dt><dd class="sl" id="shortSL">—</dd></div><div><dt>Take profit (ask)</dt><dd class="tp" id="shortTP">—</dd></div></dl><small>Close by buying at the ask.</small></article>
 </div>
-<details><summary>How the calculation works</summary><p>Midpoint = (bid + ask) / 2. Spread = ask − bid. The stop-loss percentage defines planned price risk per unit, using the midpoint as the percentage base. Take-profit distance = stop-loss distance × RRR. RRR 1 means equal planned reward and risk.</p><p>Long SL = ask − midpoint × SL%. Long TP = ask + midpoint × SL% × RRR. Short SL = bid + midpoint × SL%. Short TP = bid − midpoint × SL% × RRR. These are closing-side quote levels, so the entry spread is already included; do not add it again.</p><p>With 105.51 / 106.32 and 1% stop distance, RRR 1: midpoint 105.915; long SL 105.26085, TP 107.37915; short SL 106.56915, TP 104.45085.</p></details>
+<p id="netRatio" aria-live="polite"></p>
+<details><summary>How the calculation works</summary><p>Mid-price = (bid + ask) / 2. Spread = ask − bid. Base price move D = 1% of mid-price, before spread. Assumes the spread stays constant as the market moves.</p><p>Long enters at ask: SL (bid) = current bid − D; TP (bid) = current bid + D × RRR. Short enters at bid: SL (ask) = current ask + D; TP (ask) = current ask − D × RRR.</p><p>For either direction, price risk per unit = D + spread; price reward per unit = D × RRR − spread. The resulting reward-to-risk ratio after spread is reward / risk, before fees and slippage. A target that cannot cover the current spread is rejected.</p><p>Example: 105.51 / 106.32 gives mid-price 105.915 and base move 1.05915. At RRR 1: long SL 104.45085 / TP 106.56915; short SL 107.37915 / TP 105.26085. Price risk is 1.86915 and reward is 0.24915 per unit after spread.</p></details>
 <p><small>Calculator only; no orders are sent. Assumes positive prices and bid/ask execution. Match your broker’s trigger rules and tick size before entering orders. Display rounding, slippage, fees, funding and changing spreads can affect actual results. Shorting availability depends on the instrument and broker.</small></p>
 </main>
 <script>
 'use strict';
-function calculate(bid,ask,sl,tp){
- if(![bid,ask,sl,tp].every(Number.isFinite)||bid<=0||ask<=0||sl<=0||tp<=0)throw Error('Enter positive numbers for both quotes and percentages.');
+function calculate(bid,ask,rrr){
+ if(![bid,ask,rrr].every(Number.isFinite)||bid<=0||ask<=0||rrr<=0)throw Error('Enter positive numbers for both quotes and the reward-to-risk ratio.');
  if(ask<bid)throw Error('BUY / ask must be greater than or equal to SELL / bid.');
- const mid=bid+(ask-bid)/2,spread=ask-bid,risk=mid*sl/100,reward=mid*tp/100;
- const result={mid,spread,spreadPct:spread/mid*100,longEntry:ask,shortEntry:bid,longSL:ask-risk,longTP:ask+reward,shortSL:bid+risk,shortTP:bid-reward};
- if(!Object.values(result).every(Number.isFinite)||result.longSL<=0||result.shortTP<=0)throw Error('These percentages produce invalid price levels. Reduce the percentages.');
+ const mid=bid+(ask-bid)/2,spread=ask-bid,base=mid*.01,reward=base*rrr;
+ if(reward<=spread)throw Error('The target move does not cover the current spread. Increase RRR or use narrower quotes.');
+ const result={mid,spread,spreadPct:spread/mid*100,netRRR:(reward-spread)/(base+spread),longEntry:ask,shortEntry:bid,longSL:bid-base,longTP:bid+reward,shortSL:ask+base,shortTP:ask-reward};
+ if(!Object.values(result).every(Number.isFinite)||result.longSL<=0||result.shortTP<=0)throw Error('These inputs produce invalid price levels. Check quotes and RRR.');
  return result;
 }
 const ids=['longEntry','longSL','longTP','shortEntry','shortSL','shortTP'];
@@ -51,16 +53,16 @@ function update(){
  try{
   const decimalText=get('decimals').value,decimals=Number(decimalText);
   if(decimalText.trim()===''||!Number.isInteger(decimals)||decimals<0||decimals>10)throw Error('Choose 0 to 10 decimal places.');
-  const bid=Number(get('bid').value),ask=Number(get('ask').value),sl=Number(get('sl').value),rrr=Number(get('rrr').value);
+  const bid=Number(get('bid').value),ask=Number(get('ask').value),rrr=Number(get('rrr').value);
   if(!Number.isFinite(rrr)||rrr<=0)throw Error('Enter a positive reward-to-risk ratio.');
-  const r=calculate(bid,ask,sl,sl*rrr);
+  const r=calculate(bid,ask,rrr);
   const fmt=v=>v.toFixed(decimals);
   get('mid').textContent=fmt(r.mid);get('spread').textContent=fmt(r.spread)+' / '+r.spreadPct.toFixed(3)+'%';
-  if(r.mid*Number(get('sl').value)/100<=r.spread)throw Error('Stop loss is at or inside the current spread and could trigger immediately. Increase the stop-loss percentage.');
   if(selectedDirection){const side=selectedDirection;const entry=Number(fmt(r[side+'Entry'])),stop=Number(fmt(r[side+'SL'])),target=Number(fmt(r[side+'TP']));if(stop<=0||target<=0||(side==='long'?!(stop<entry&&entry<target):!(target<entry&&entry<stop)))throw Error('Display rounding hides the order distances. Increase price decimal places.');}
   ids.forEach(id=>get(id).textContent=fmt(r[id]));
-  message.textContent=r.mid*Number(get('sl').value)/100<=r.spread?'Your stop distance is at or inside the current spread: a stop could trigger immediately.':'';
- }catch(e){get('mid').textContent='—';get('spread').textContent='—';ids.forEach(id=>get(id).textContent='—');message.textContent=e.message;}
+  get('netRatio').textContent=selectedDirection?'Reward-to-risk after spread: '+r.netRRR.toFixed(3)+':1 (before fees and slippage).':'';
+  message.textContent='';
+ }catch(e){get('mid').textContent='—';get('spread').textContent='—';get('netRatio').textContent='';ids.forEach(id=>get(id).textContent='—');message.textContent=e.message;}
 }
 document.querySelectorAll('input').forEach(input=>input.addEventListener('input',update));update();
 ['long','short'].forEach(side=>document.getElementById(side+'Tab').addEventListener('click',()=>chooseDirection(side)));
