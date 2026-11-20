@@ -28,10 +28,5 @@ const variable=ctx.calculate(105.51,106.32,2,2);near(variable.longSL,103.3917);n
 for(const pct of [0,-1,NaN,Infinity])assert.throws(()=>ctx.calculate(105.51,106.32,1,pct));
 els.bid.value='105.51';els.ask.value='106.32';els.decimals.value='4';els.rrr.value='2';els.move.value='2';ctx.update();assert.equal(els.shortTP.textContent,(106.32-4.2366).toFixed(4));els.move.value='';ctx.update();assert.equal(els.shortTP.textContent,'—');assert.match(els.message.textContent,/base price move/);
 console.log('PASS: editable 2% move with RRR 2 in both directions and empty/invalid movement rejection.');
-let opened;
-ctx.URL=URL;ctx.window={location:{href:'https://ceofounder.github.io/trade-calculator/'},open(...args){opened=args;return {};}};
-els.move.value='2';ctx.chooseDirection('short');ctx.openCompactWindow();
-const transferred=JSON.parse(decodeURIComponent(new URL(opened[0]).hash.slice(1)));
-assert.equal(transferred.values.move,'2');assert.equal(transferred.direction,'short');assert.match(opened[2],/width=460,height=560/);
-ctx.window.open=()=>null;ctx.openCompactWindow();assert.match(els.windowMessage.textContent,/blocked/);
-console.log('PASS: compact window preserves values and direction; blocked pop-up shows recovery instructions.');
+
+ctx.window={};ctx.openCompactWindow();assert.match(els.windowMessage.textContent,/desktop Chrome or Edge/);console.log('PASS: unsupported browsers receive clear floating-window instructions.');
