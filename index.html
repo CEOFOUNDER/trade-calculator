@@ -6,7 +6,7 @@
 :root{font-family:system-ui,sans-serif;color:#e8eff9;background:#101827;color-scheme:dark}*{box-sizing:border-box}body{margin:0;padding:32px 18px}main{max-width:820px;margin:auto}h1{font-size:2rem;margin-bottom:8px}p{color:#afbdd1;line-height:1.6}.panel,article{background:#192538;border:1px solid #31415a;border-radius:16px;padding:24px;margin-top:20px}.inputs,.cards,.metrics{display:grid;grid-template-columns:1fr 1fr;gap:20px}label{display:block;font-size:1rem;color:#cbd7e8}input{display:block;width:100%;margin-top:8px;padding:12px;border:1px solid #51647e;border-radius:8px;font:inherit;background:#101827;color:#fff}input:focus{outline:2px solid #68b5ff}h2{margin-top:0;font-size:1.25rem}dl{margin:0}dl div{display:flex;justify-content:space-between;gap:12px;padding:13px 0;border-bottom:1px solid #31415a}dt{color:#afbdd1}dd{margin:0;font-variant-numeric:tabular-nums;font-weight:650}.long{border-top:3px solid #58d6b0}.short{border-top:3px solid #89acff}.tp{color:#58d6b0}.sl{color:#ffaaa4}#message{color:#ffd28a}small{display:block;color:#afbdd1;font-size:.9rem;line-height:1.6}.metrics{margin-top:20px}.metric strong{display:block;font-size:1.3rem;margin-top:6px}details{margin-top:24px;line-height:1.7}summary{cursor:pointer}button{padding:10px 15px;margin-top:18px;border:1px solid #51647e;border-radius:8px;background:#253650;color:white;font:inherit;cursor:pointer}@media(max-width:580px){.inputs,.cards{grid-template-columns:1fr}.panel,article{padding:18px}body{padding:20px 14px}}
 </style>
 <main>
-<header><h1>Trade calculator</h1><button id="detach" type="button">Open compact window</button></header><p id="windowMessage" role="status" aria-live="polite"></p>
+<header><h1>Trade calculator</h1><button id="detach" type="button">Floating window</button></header><p id="windowMessage" role="status" aria-live="polite"></p>
 <section class="panel" aria-label="Quotes and strategy">
 <div class="inputs">
 <label>Security (optional)<input id="security" placeholder="e.g. AAPL, EUR/USD, Gold" maxlength="80"></label>
@@ -38,6 +38,8 @@ body{padding:10px}main{max-width:440px}header{display:flex;align-items:center;ju
 </style>
 <script>
 'use strict';
+let uiDocument=document;
+let floatingWindow=null;
 function calculate(bid,ask,rrr,movePct=1){
  if(!Number.isFinite(movePct)||movePct<=0)throw Error('Enter a positive base price move percentage.');
  if(![bid,ask,rrr].every(Number.isFinite)||bid<=0||ask<=0||rrr<=0)throw Error('Enter positive numbers for both quotes and the reward-to-risk ratio.');
@@ -52,12 +54,12 @@ const ids=['longEntry','longSL','longTP','shortEntry','shortSL','shortTP'];
 let selectedDirection=null;
 function chooseDirection(direction){
  selectedDirection=direction;
- ['long','short'].forEach(side=>{document.getElementById(side+'Tab').setAttribute('aria-selected',String(side===direction));document.getElementById(side+'Panel').hidden=side!==direction;});
- document.getElementById('directionPrompt').textContent=direction==='long'?'Selected: LONG — buy to open, sell to close.':'Selected: SHORT — sell to open, buy to close.';
+ ['long','short'].forEach(side=>{uiDocument.getElementById(side+'Tab').setAttribute('aria-selected',String(side===direction));uiDocument.getElementById(side+'Panel').hidden=side!==direction;});
+ uiDocument.getElementById('directionPrompt').textContent=direction==='long'?'Selected: LONG — buy to open, sell to close.':'Selected: SHORT — sell to open, buy to close.';
  update();
 }
 function update(){
- const get=id=>document.getElementById(id),message=get('message');
+ const get=id=>uiDocument.getElementById(id),message=get('message');
  try{
   const decimalText=get('decimals').value,decimals=Number(decimalText);
   if(decimalText.trim()===''||!Number.isInteger(decimals)||decimals<0||decimals>10)throw Error('Choose 0 to 10 decimal places.');
@@ -73,18 +75,27 @@ function update(){
  }catch(e){get('mid').textContent='—';get('spread').textContent='—';get('netRatio').textContent='';ids.forEach(id=>get(id).textContent='—');message.textContent=e.message;}
 }
 document.querySelectorAll('input').forEach(input=>input.addEventListener('input',update));update();
-['long','short'].forEach(side=>document.getElementById(side+'Tab').addEventListener('click',()=>chooseDirection(side)));
-function openCompactWindow(){
- const state={values:{},direction:selectedDirection};
- ['security','decimals','bid','ask','move','rrr'].forEach(id=>state.values[id]=document.getElementById(id).value);
- // The fragment stays in the browser; it is not sent to the hosting server.
- const url=new URL(window.location.href);url.hash=encodeURIComponent(JSON.stringify(state));
- const child=window.open(url.href,'tradeCalculatorCompact','popup=yes,width=460,height=560,resizable=yes,scrollbars=yes');
- document.getElementById('windowMessage').textContent=child?'Opened a separate window. Use its window controls to minimize it.':'Your browser blocked the window. Allow pop-ups for this site, or drag this tab into a separate window.';
+['long','short'].forEach(side=>uiDocument.getElementById(side+'Tab').addEventListener('click',()=>chooseDirection(side)));
+async function openCompactWindow(){
+ if(floatingWindow&&!floatingWindow.closed){floatingWindow.close();return;}
+ const message=uiDocument.getElementById('windowMessage');
+ if(!window.documentPictureInPicture?.requestWindow){message.textContent='This browser cannot create a floating window. Open this page in desktop Chrome or Edge, then click Floating window. In-app browsers may only support tabs.';return;}
+ try{
+  const pip=await window.documentPictureInPicture.requestWindow({width:460,height:560});
+  const main=document.querySelector('main');
+  document.querySelectorAll('style').forEach(style=>pip.document.head.append(style.cloneNode(true)));
+  pip.document.title='Trade calculator';
+  const placeholder=document.createElement('p');
+  placeholder.textContent='The calculator is in a floating window. Drag its title bar to move it. Close that window to return the calculator here. Keep this tab open.';
+  document.body.append(placeholder);
+  pip.document.body.append(main);uiDocument=pip.document;floatingWindow=pip;
+  uiDocument.getElementById('detach').textContent='Return to tab';message.textContent='Drag this window by its title bar. Close it to return to the tab.';
+  pip.addEventListener('pagehide',()=>{document.body.prepend(main);uiDocument=document;floatingWindow=null;placeholder.remove();uiDocument.getElementById('detach').textContent='Floating window';message.textContent='';},{once:true});
+ }catch(error){message.textContent='Could not open a floating window. Use desktop Chrome or Edge and click the button again. '+(error?.message||'');}
 }
-document.getElementById('detach').addEventListener('click',openCompactWindow);
+uiDocument.getElementById('detach').addEventListener('click',openCompactWindow);
 if(typeof window!=='undefined'&&window.location.hash){
- try{const state=JSON.parse(decodeURIComponent(window.location.hash.slice(1)));['security','decimals','bid','ask','move','rrr'].forEach(id=>{if(typeof state.values?.[id]==='string')document.getElementById(id).value=state.values[id];});if(['long','short'].includes(state.direction))chooseDirection(state.direction);else update();window.history.replaceState(null,'',window.location.pathname+window.location.search);}catch{document.getElementById('windowMessage').textContent='Could not restore the previous inputs. Enter fresh quotes.';}
+ try{const state=JSON.parse(decodeURIComponent(window.location.hash.slice(1)));['security','decimals','bid','ask','move','rrr'].forEach(id=>{if(typeof state.values?.[id]==='string')uiDocument.getElementById(id).value=state.values[id];});if(['long','short'].includes(state.direction))chooseDirection(state.direction);else update();window.history.replaceState(null,'',window.location.pathname+window.location.search);}catch{uiDocument.getElementById('windowMessage').textContent='Could not restore the previous inputs. Enter fresh quotes.';}
 }
 </script>
 </html>
