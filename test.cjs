@@ -22,9 +22,16 @@ console.log('PASS: midpoint, spread, long/short levels, explicit direction selec
 assert.doesNotMatch(html,/id="sl"/);assert.equal((html.match(/<input /g)||[]).length,6);
 near(r.longEntry-r.longSL,1.05915+.81);near(r.longTP-r.longEntry,1.05915-.81);near(r.shortSL-r.shortEntry,1.05915+.81);near(r.shortEntry-r.shortTP,1.05915-.81);near(r.netRRR,(1.05915-.81)/(1.05915+.81));
 const zero=ctx.calculate(100,100,2);near(zero.netRRR,2);near(zero.longSL,99);near(zero.longTP,102);
-console.log('PASS: five inputs, fixed 1% move, spread-adjusted risk and reward in both directions, zero spread.');
+console.log('PASS: six inputs, spread-adjusted risk and reward in both directions, zero spread.');
 
 const variable=ctx.calculate(105.51,106.32,2,2);near(variable.longSL,103.3917);near(variable.longTP,109.7466);near(variable.shortSL,108.4383);near(variable.shortTP,102.0834);
 for(const pct of [0,-1,NaN,Infinity])assert.throws(()=>ctx.calculate(105.51,106.32,1,pct));
 els.bid.value='105.51';els.ask.value='106.32';els.decimals.value='4';els.rrr.value='2';els.move.value='2';ctx.update();assert.equal(els.shortTP.textContent,(106.32-4.2366).toFixed(4));els.move.value='';ctx.update();assert.equal(els.shortTP.textContent,'—');assert.match(els.message.textContent,/base price move/);
 console.log('PASS: editable 2% move with RRR 2 in both directions and empty/invalid movement rejection.');
+let opened;
+ctx.URL=URL;ctx.window={location:{href:'https://ceofounder.github.io/trade-calculator/'},open(...args){opened=args;return {};}};
+els.move.value='2';ctx.chooseDirection('short');ctx.openCompactWindow();
+const transferred=JSON.parse(decodeURIComponent(new URL(opened[0]).hash.slice(1)));
+assert.equal(transferred.values.move,'2');assert.equal(transferred.direction,'short');assert.match(opened[2],/width=460,height=560/);
+ctx.window.open=()=>null;ctx.openCompactWindow();assert.match(els.windowMessage.textContent,/blocked/);
+console.log('PASS: compact window preserves values and direction; blocked pop-up shows recovery instructions.');
