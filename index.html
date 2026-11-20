@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Trade calculator</title>
+<style>
+:root{font-family:system-ui,sans-serif;color:#e8eff9;background:#101827;color-scheme:dark}*{box-sizing:border-box}body{margin:0;padding:32px 18px}main{max-width:820px;margin:auto}h1{font-size:2rem;margin-bottom:8px}p{color:#afbdd1;line-height:1.6}.panel,article{background:#192538;border:1px solid #31415a;border-radius:16px;padding:24px;margin-top:20px}.inputs,.cards,.metrics{display:grid;grid-template-columns:1fr 1fr;gap:20px}label{display:block;font-size:1rem;color:#cbd7e8}input{display:block;width:100%;margin-top:8px;padding:12px;border:1px solid #51647e;border-radius:8px;font:inherit;background:#101827;color:#fff}input:focus{outline:2px solid #68b5ff}h2{margin-top:0;font-size:1.25rem}dl{margin:0}dl div{display:flex;justify-content:space-between;gap:12px;padding:13px 0;border-bottom:1px solid #31415a}dt{color:#afbdd1}dd{margin:0;font-variant-numeric:tabular-nums;font-weight:650}.long{border-top:3px solid #58d6b0}.short{border-top:3px solid #89acff}.tp{color:#58d6b0}.sl{color:#ffaaa4}#message{color:#ffd28a}small{display:block;color:#afbdd1;font-size:.9rem;line-height:1.6}.metrics{margin-top:20px}.metric strong{display:block;font-size:1.3rem;margin-top:6px}details{margin-top:24px;line-height:1.7}summary{cursor:pointer}button{padding:10px 15px;margin-top:18px;border:1px solid #51647e;border-radius:8px;background:#253650;color:white;font:inherit;cursor:pointer}@media(max-width:580px){.inputs,.cards{grid-template-columns:1fr}.panel,article{padding:18px}body{padding:20px 14px}}
+</style>
+<main>
+<h1>Trade calculator</h1><p>Enter your platform’s sell and buy quotes. Get spread-aware levels for a long or short trade.</p>
+<section class="panel" aria-label="Quotes and strategy">
+<div class="inputs">
+<label>Security (optional)<input id="security" placeholder="e.g. AAPL, EUR/USD, Gold" maxlength="80"></label>
+<label>Price decimal places<input id="decimals" type="number" min="0" max="10" step="1" value="4"></label>
+<label>SELL / bid<input id="bid" type="number" step="any" min="0" value="105.51" inputmode="decimal"></label>
+<label>BUY / ask<input id="ask" type="number" step="any" min="0" value="106.32" inputmode="decimal"></label>
+<label>Stop-loss distance (% of midpoint)<input id="sl" type="number" step="any" min="0" value="1" inputmode="decimal"></label>
+<label>Reward-to-risk ratio (RRR)<input id="rrr" type="number" step="any" min="0" value="1" inputmode="decimal"><small>1 = equal reward and risk; 2 = twice the reward.</small></label>
+</div>
+<div class="metrics"><div class="metric">Midpoint<strong id="mid">—</strong></div><div class="metric">Spread / midpoint<strong id="spread">—</strong></div></div>
+<p id="message" role="status" aria-live="polite"></p>
+</section>
+<section class="panel" aria-label="Trade direction"><h2>Choose your trade direction</h2><div role="tablist" aria-label="Long or short"><button id="longTab" type="button" role="tab" aria-selected="false" aria-controls="longPanel">LONG · Buy</button> <button id="shortTab" type="button" role="tab" aria-selected="false" aria-controls="shortPanel">SHORT · Sell</button></div><p id="directionPrompt">Click Long or Short to display its order levels.</p></section>
+<style>[hidden]{display:none!important}.cards{display:block}button[aria-selected="true"]{background:#e8eff9;color:#101827;border:2px solid #68b5ff;font-weight:700}button:focus-visible{outline:3px solid #68b5ff;outline-offset:3px}</style>
+<div class="cards" aria-live="polite">
+<article id="longPanel" class="long" role="tabpanel" aria-labelledby="longTab" hidden><h2>LONG · Buy to open</h2><dl><div><dt>Entry (ask)</dt><dd id="longEntry">—</dd></div><div><dt>Stop loss (bid)</dt><dd class="sl" id="longSL">—</dd></div><div><dt>Take profit (bid)</dt><dd class="tp" id="longTP">—</dd></div></dl><small>Close by selling at the bid.</small></article>
+<article id="shortPanel" class="short" role="tabpanel" aria-labelledby="shortTab" hidden><h2>SHORT · Sell to open</h2><dl><div><dt>Entry (bid)</dt><dd id="shortEntry">—</dd></div><div><dt>Stop loss (ask)</dt><dd class="sl" id="shortSL">—</dd></div><div><dt>Take profit (ask)</dt><dd class="tp" id="shortTP">—</dd></div></dl><small>Close by buying at the ask.</small></article>
+</div>
+<details><summary>How the calculation works</summary><p>Midpoint = (bid + ask) / 2. Spread = ask − bid. The stop-loss percentage defines planned price risk per unit, using the midpoint as the percentage base. Take-profit distance = stop-loss distance × RRR. RRR 1 means equal planned reward and risk.</p><p>Long SL = ask − midpoint × SL%. Long TP = ask + midpoint × SL% × RRR. Short SL = bid + midpoint × SL%. Short TP = bid − midpoint × SL% × RRR. These are closing-side quote levels, so the entry spread is already included; do not add it again.</p><p>With 105.51 / 106.32 and 1% stop distance, RRR 1: midpoint 105.915; long SL 105.26085, TP 107.37915; short SL 106.56915, TP 104.45085.</p></details>
+<p><small>Calculator only; no orders are sent. Assumes positive prices and bid/ask execution. Match your broker’s trigger rules and tick size before entering orders. Display rounding, slippage, fees, funding and changing spreads can affect actual results. Shorting availability depends on the instrument and broker.</small></p>
+</main>
+<script>
+'use strict';
+function calculate(bid,ask,sl,tp){
+ if(![bid,ask,sl,tp].every(Number.isFinite)||bid<=0||ask<=0||sl<=0||tp<=0)throw Error('Enter positive numbers for both quotes and percentages.');
+ if(ask<bid)throw Error('BUY / ask must be greater than or equal to SELL / bid.');
+ const mid=bid+(ask-bid)/2,spread=ask-bid,risk=mid*sl/100,reward=mid*tp/100;
+ const result={mid,spread,spreadPct:spread/mid*100,longEntry:ask,shortEntry:bid,longSL:ask-risk,longTP:ask+reward,shortSL:bid+risk,shortTP:bid-reward};
+ if(!Object.values(result).every(Number.isFinite)||result.longSL<=0||result.shortTP<=0)throw Error('These percentages produce invalid price levels. Reduce the percentages.');
+ return result;
+}
+const ids=['longEntry','longSL','longTP','shortEntry','shortSL','shortTP'];
+let selectedDirection=null;
+function chooseDirection(direction){
+ selectedDirection=direction;
+ ['long','short'].forEach(side=>{document.getElementById(side+'Tab').setAttribute('aria-selected',String(side===direction));document.getElementById(side+'Panel').hidden=side!==direction;});
+ document.getElementById('directionPrompt').textContent=direction==='long'?'Selected: LONG — buy to open, sell to close.':'Selected: SHORT — sell to open, buy to close.';
+ update();
+}
+function update(){
+ const get=id=>document.getElementById(id),message=get('message');
+ try{
+  const decimalText=get('decimals').value,decimals=Number(decimalText);
+  if(decimalText.trim()===''||!Number.isInteger(decimals)||decimals<0||decimals>10)throw Error('Choose 0 to 10 decimal places.');
+  const bid=Number(get('bid').value),ask=Number(get('ask').value),sl=Number(get('sl').value),rrr=Number(get('rrr').value);
+  if(!Number.isFinite(rrr)||rrr<=0)throw Error('Enter a positive reward-to-risk ratio.');
+  const r=calculate(bid,ask,sl,sl*rrr);
+  const fmt=v=>v.toFixed(decimals);
+  get('mid').textContent=fmt(r.mid);get('spread').textContent=fmt(r.spread)+' / '+r.spreadPct.toFixed(3)+'%';
+  if(r.mid*Number(get('sl').value)/100<=r.spread)throw Error('Stop loss is at or inside the current spread and could trigger immediately. Increase the stop-loss percentage.');
+  if(selectedDirection){const side=selectedDirection;const entry=Number(fmt(r[side+'Entry'])),stop=Number(fmt(r[side+'SL'])),target=Number(fmt(r[side+'TP']));if(stop<=0||target<=0||(side==='long'?!(stop<entry&&entry<target):!(target<entry&&entry<stop)))throw Error('Display rounding hides the order distances. Increase price decimal places.');}
+  ids.forEach(id=>get(id).textContent=fmt(r[id]));
+  message.textContent=r.mid*Number(get('sl').value)/100<=r.spread?'Your stop distance is at or inside the current spread: a stop could trigger immediately.':'';
+ }catch(e){get('mid').textContent='—';get('spread').textContent='—';ids.forEach(id=>get(id).textContent='—');message.textContent=e.message;}
+}
+document.querySelectorAll('input').forEach(input=>input.addEventListener('input',update));update();
+['long','short'].forEach(side=>document.getElementById(side+'Tab').addEventListener('click',()=>chooseDirection(side)));
+</script>
+</html>
