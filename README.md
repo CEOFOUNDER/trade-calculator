@@ -2,9 +2,9 @@
 
 Live app: https://ceofounder.github.io/trade-calculator/
 
-Five inputs: security label (optional), price decimals, sell/bid, buy/ask, and reward-to-risk ratio before spread (default 1 = 1:1). The label does not fetch quotes. Click Long or Short to show only that direction.
+Six inputs: security label (optional), price decimals, sell/bid, buy/ask, base price move percentage, and reward-to-risk ratio before spread (default 1 = 1:1). The label does not fetch quotes. Click Long or Short to show only that direction.
 
-Base price move: 1% of mid-price (before spread) is fixed, not an input. M = (bid + ask) / 2; D = M * 0.01; S = ask - bid. Assumes unchanged spread during the move.
+Base price move (% of mid-price, before spread) is editable and defaults to 1%. M = (bid + ask) / 2; D = M * entered percentage / 100; S = ask - bid. Assumes unchanged spread during the move.
 
 Long enters at ask and exits at bid: SL = bid - D; TP = bid + D * RRR. Short enters at bid and exits at ask: SL = ask + D; TP = ask - D * RRR.
 
