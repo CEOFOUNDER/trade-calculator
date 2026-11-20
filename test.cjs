@@ -6,27 +6,27 @@ const document={getElementById(id){return els[id]??={value:values[id]??'',textCo
 const ctx={document};vm.createContext(ctx);vm.runInContext(html.match(/<script>([\s\S]*?)<\/script>/)[1],ctx);
 const near=(a,b)=>assert.ok(Math.abs(a-b)<1e-10,`${a} != ${b}`);
 const r=ctx.calculate(105.51,106.32,1);
-for(const [k,v]of Object.entries({mid:105.915,spread:.81,longSL:104.45085,longTP:106.56915,shortSL:107.37915,shortTP:105.26085}))near(r[k],v);
+for(const [k,v]of Object.entries({mid:105.915,spread:.81,longSL:105.26085,longTP:107.37915,shortSL:106.56915,shortTP:104.45085}))near(r[k],v);
 assert.match(html,/id="longPanel"[^>]* hidden/);assert.match(html,/id="shortPanel"[^>]* hidden/);
 ctx.chooseDirection('long');assert.equal(els.longPanel.hidden,false);assert.equal(els.shortPanel.hidden,true);assert.equal(els.longTab.attrs['aria-selected'],'true');
 ctx.chooseDirection('short');assert.equal(els.longPanel.hidden,true);assert.equal(els.shortPanel.hidden,false);
-els.rrr.value='2';ctx.update();assert.equal(els.shortTP.textContent,(106.32-2*1.05915).toFixed(4));
+els.rrr.value='2';ctx.update();assert.equal(els.shortTP.textContent,(105.51-2*1.05915).toFixed(4));
 els.rrr.value='';ctx.update();assert.equal(els.shortTP.textContent,'—');
-els.rrr.value='.1';ctx.update();assert.match(els.message.textContent,/spread/);assert.equal(els.shortTP.textContent,'—');
-els.rrr.value='1';els.bid.value='107';ctx.update();assert.match(els.message.textContent,/greater/);
+els.rrr.value='1';els.move.value='.1';ctx.update();assert.match(els.message.textContent,/spread/);assert.equal(els.shortTP.textContent,'—');
+els.move.value='1';els.rrr.value='1';els.bid.value='107';ctx.update();assert.match(els.message.textContent,/greater/);
 els.bid.value='';ctx.update();assert.match(els.message.textContent,/positive/);
 Object.assign(els.bid,{value:'1'});els.ask.value='1';els.decimals.value='0';ctx.update();assert.match(els.message.textContent,/rounding/);
 for(const args of [[0,100,1],[106,105,1],[100,100,0],[NaN,100,1],[100,100,101]])assert.throws(()=>ctx.calculate(...args));
 console.log('PASS: midpoint, spread, long/short levels, explicit direction selection, exclusive panels, RRR 2, blank RRR, crossed/blank quotes, spread stop blocking, rounding and invalid levels.');
 
 assert.doesNotMatch(html,/id="sl"/);assert.equal((html.match(/<input /g)||[]).length,6);
-near(r.longEntry-r.longSL,1.05915+.81);near(r.longTP-r.longEntry,1.05915-.81);near(r.shortSL-r.shortEntry,1.05915+.81);near(r.shortEntry-r.shortTP,1.05915-.81);near(r.netRRR,(1.05915-.81)/(1.05915+.81));
+near(r.longEntry-r.longSL,1.05915);near(r.longTP-r.longEntry,1.05915);near(r.shortSL-r.shortEntry,1.05915);near(r.shortEntry-r.shortTP,1.05915);near(r.netRRR,1);
 const zero=ctx.calculate(100,100,2);near(zero.netRRR,2);near(zero.longSL,99);near(zero.longTP,102);
 console.log('PASS: six inputs, spread-adjusted risk and reward in both directions, zero spread.');
 
-const variable=ctx.calculate(105.51,106.32,2,2);near(variable.longSL,103.3917);near(variable.longTP,109.7466);near(variable.shortSL,108.4383);near(variable.shortTP,102.0834);
+const variable=ctx.calculate(105.51,106.32,2,2);near(variable.longSL,104.2017);near(variable.longTP,110.5566);near(variable.shortSL,107.6283);near(variable.shortTP,101.2734);
 for(const pct of [0,-1,NaN,Infinity])assert.throws(()=>ctx.calculate(105.51,106.32,1,pct));
-els.bid.value='105.51';els.ask.value='106.32';els.decimals.value='4';els.rrr.value='2';els.move.value='2';ctx.update();assert.equal(els.shortTP.textContent,(106.32-4.2366).toFixed(4));els.move.value='';ctx.update();assert.equal(els.shortTP.textContent,'—');assert.match(els.message.textContent,/base price move/);
+els.bid.value='105.51';els.ask.value='106.32';els.decimals.value='4';els.rrr.value='2';els.move.value='2';ctx.update();assert.equal(els.shortTP.textContent,(105.51-4.2366).toFixed(4));els.move.value='';ctx.update();assert.equal(els.shortTP.textContent,'—');assert.match(els.message.textContent,/base price move/);
 console.log('PASS: editable 2% move with RRR 2 in both directions and empty/invalid movement rejection.');
 
 ctx.window={};ctx.openCompactWindow();assert.match(els.windowMessage.textContent,/desktop Chrome or Edge/);console.log('PASS: unsupported browsers receive clear floating-window instructions.');
